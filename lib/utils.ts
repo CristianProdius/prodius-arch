@@ -1,28 +1,3 @@
-export const HOSTING_CONFIG_KEY = "prodius_arch_hosting_config";
-export const HOSTING_DOMAIN_SUFFIX = ".puter.site";
-
-export const isHostedUrl = (value: unknown): value is string =>
-  typeof value === "string" && value.includes(HOSTING_DOMAIN_SUFFIX);
-
-export const createHostingSlug = () =>
-  `prodius-arch-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
-
-const normalizeHost = (subdomain: string) =>
-  subdomain.endsWith(HOSTING_DOMAIN_SUFFIX)
-    ? subdomain
-    : `${subdomain}${HOSTING_DOMAIN_SUFFIX}`;
-
-export const getHostedUrl = (
-  hosting: { subdomain: string; },
-  filePath: string,
-): string | null => {
-  if (!hosting?.subdomain) return null;
-  const host = normalizeHost(hosting.subdomain);
-  return `https://${host}/${filePath}`;
-};
-
 export const getImageExtension = (contentType: string, url: string): string => {
   const type = (contentType || "").toLowerCase();
   const typeMatch = type.match(/image\/(png|jpe?g|webp|gif|svg\+xml|svg)/);

@@ -5,25 +5,23 @@ import { Button } from "./ui/Button";
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const { isSignedIn, userName, signIn, signOut, settings, updateSettings } =
+  const { user, signIn, signOut, settings, updateSettings } =
     useOutletContext<AuthContext>();
+
+  const isSignedIn = !!user;
+  const userName = user?.name ?? null;
 
   const handleAuthClick = async () => {
     if (isSignedIn) {
       try {
         await signOut();
       } catch (error) {
-        console.error("Puter sign-out failed:", error);
+        console.error("Sign-out failed:", error);
       }
-      navigate("/");
       return;
     }
 
-    try {
-      await signIn();
-    } catch (error) {
-      console.error("Puter sign-in failed:", error);
-    }
+    signIn();
   };
 
   const toggleDarkMode = () => {

@@ -18,7 +18,8 @@ const Upload = ({ onComplete, className = "" }: UploadProps) => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { isSignedIn } = useOutletContext<AuthContext>();
+  const { user } = useOutletContext<AuthContext>();
+  const isSignedIn = !!user;
 
   useEffect(() => {
     return () => {
@@ -129,7 +130,7 @@ const Upload = ({ onComplete, className = "" }: UploadProps) => {
             <p>
               {isSignedIn
                 ? "Click to upload or drag and drop"
-                : "Sign in or sign up with Puter to upload"}
+                : "Sign in to upload"}
             </p>
             <p className="help">Maximum file size 50 MB.</p>
             {error && <p className="help" style={{ color: "#ef4444" }}>{error}</p>}

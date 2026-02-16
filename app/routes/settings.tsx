@@ -4,8 +4,8 @@ import Navbar from "@/components/Navbar";
 import { STYLE_PRESETS, QUALITY_LEVELS } from "@/lib/constants";
 
 export const meta = () => [
-  { title: "Settings | Roomify" },
-  { name: "description", content: "Manage your Roomify preferences and settings." },
+  { title: "Settings | Prodius Arch" },
+  { name: "description", content: "Manage your Prodius Arch preferences and settings." },
 ];
 
 export default function SettingsRoute() {

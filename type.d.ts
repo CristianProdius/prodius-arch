@@ -33,10 +33,7 @@ interface DesignHistoryItem {
   id: string;
   name?: string | null;
   sourceImage: string;
-  sourcePath?: string | null;
   renderedImage?: string | null;
-  renderedPath?: string | null;
-  publicPath?: string | null;
   timestamp: number;
   ownerId?: string | null;
   sharedBy?: string | null;
@@ -110,12 +107,9 @@ interface CardProps {
 }
 
 type AuthContext = {
-  isSignedIn: boolean;
-  userName: string | null;
-  userId: string | null;
-  refreshAuth: () => Promise<boolean>;
-  signIn: () => Promise<boolean>;
-  signOut: () => Promise<boolean>;
+  user: { id: string; name: string; email: string; image?: string } | null;
+  signIn: () => void;
+  signOut: () => void;
   settings: UserSettings;
   updateSettings: (s: Partial<UserSettings>) => Promise<void>;
 };
@@ -131,10 +125,3 @@ type AuthRequiredModalProps = {
 
 type ShareAction = "share" | "unshare";
 type ShareStatus = "idle" | "saving" | "done";
-
-interface StoreHostedImageParams {
-  hosting: HostingConfig | null;
-  url: string;
-  projectId: string;
-  label: "source" | "rendered";
-}

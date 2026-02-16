@@ -23,6 +23,10 @@
         "./*"
       ]
     },
+    "rootDirs": [
+      ".",
+      ".react-router/types"
+    ],
     "allowImportingTsExtensions": true,
     "noEmit": true
   }

@@ -15,14 +15,14 @@ import {
   renameProject,
   deleteProject,
   duplicateProject,
-} from "@/lib/puter.action";
+} from "@/lib/api";
 
 import Visualizer from "@/components/Visualizer";
 
 export const meta = ({ params }: { params: { id: string } }) => [
-  { title: `Project ${params.id} | Roomify` },
+  { title: `Project ${params.id} | Prodius Arch` },
   { name: "description", content: "View and edit your AI architectural visualization." },
-  { property: "og:title", content: `Project ${params.id} | Roomify` },
+  { property: "og:title", content: `Project ${params.id} | Prodius Arch` },
   { property: "og:description", content: "AI-powered architectural visualization" },
   { name: "twitter:card", content: "summary_large_image" },
 ];
@@ -39,11 +39,9 @@ export default function VisualizerRoute() {
   const [selectedInitialRender, setSelectedInitialRender] = useState<
     string | null
   >(null);
-  const {
-    userId: currentUserId,
-    isSignedIn,
-    signIn,
-  } = useOutletContext<AuthContext>();
+  const { user, signIn } = useOutletContext<AuthContext>();
+  const currentUserId = user?.id ?? null;
+  const isSignedIn = !!user;
 
   const search = new URLSearchParams(location.search);
   const sourceParam = search.get("source");
@@ -62,8 +60,8 @@ export default function VisualizerRoute() {
     ownerId?: string | null,
   ) => {
     if (scope === "private" && !isSignedIn) {
-      const signedIn = await signIn();
-      if (!signedIn) return null;
+      signIn();
+      return null;
     }
 
     return await getProjectById({ id: projectId, scope, ownerId });
@@ -75,12 +73,11 @@ export default function VisualizerRoute() {
   }) => {
     if (!id) return;
     const sourceImage = resolvedItem?.sourceImage || uploadedImage || "";
-    const updatedItem = {
+    const updatedItem: DesignHistoryItem = {
       id,
       name: resolvedItem?.name || `Residence ${id}`,
       sourceImage,
       renderedImage: payload.renderedImage,
-      renderedPath: payload.renderedPath,
       timestamp: Date.now(),
       ownerId: resolvedItem?.ownerId || null,
       isPublic: resolvedItem?.isPublic || false,
@@ -104,12 +101,11 @@ export default function VisualizerRoute() {
   ) => {
     if (!id) return;
     const visibility = opts?.visibility || "public";
-    const updatedItem = {
+    const updatedItem: DesignHistoryItem = {
       id,
       name: resolvedItem?.name || `Residence ${id}`,
       sourceImage: uploadedImage || "",
       renderedImage: image,
-      renderedPath: resolvedItem?.renderedPath,
       timestamp: Date.now(),
       ownerId:
         visibility === "public"

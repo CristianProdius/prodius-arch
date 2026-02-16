@@ -3,15 +3,18 @@ import { useOutletContext, useNavigate } from "react-router";
 import { User, Layers, Globe, Settings, Upload, Users } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { Button } from "@/components/ui/Button";
-import { getProjects } from "@/lib/puter.action";
+import { getProjects } from "@/lib/api";
 
 export const meta = () => [
-  { title: "Profile | Roomify" },
-  { name: "description", content: "View your Roomify profile and project statistics." },
+  { title: "Profile | Prodius Arch" },
+  { name: "description", content: "View your Prodius Arch profile and project statistics." },
 ];
 
 export default function ProfileRoute() {
-  const { isSignedIn, userName, userId, signIn } = useOutletContext<AuthContext>();
+  const { user, signIn } = useOutletContext<AuthContext>();
+  const isSignedIn = !!user;
+  const userName = user?.name ?? null;
+  const userId = user?.id ?? null;
   const navigate = useNavigate();
   const [stats, setStats] = useState({ total: 0, publicCount: 0 });
 
@@ -73,7 +76,7 @@ export default function ProfileRoute() {
               <User size={48} className="profile-signed-out-icon" />
               <h1>Sign in to view your profile</h1>
               <p>Create an account to save projects and share with the community.</p>
-              <Button onClick={() => signIn()}>Sign In with Puter</Button>
+              <Button onClick={() => signIn()}>Sign In</Button>
             </div>
           )}
         </div>

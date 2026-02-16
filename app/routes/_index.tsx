@@ -22,16 +22,18 @@ import {
   duplicateProject,
   batchDeleteProjects,
   updateProjectTags,
-} from "@/lib/puter.action";
+  uploadImage,
+} from "@/lib/api";
+import { dataUrlToBlob } from "@/lib/utils";
 
 export const meta = () => [
-  { title: "Roomify — AI Architectural Visualization" },
+  { title: "Prodius Arch — AI Architectural Visualization" },
   { name: "description", content: "Upload floor plans, generate photorealistic 3D renders with AI, and share your architectural designs." },
-  { property: "og:title", content: "Roomify — AI Architectural Visualization" },
+  { property: "og:title", content: "Prodius Arch — AI Architectural Visualization" },
   { property: "og:description", content: "Upload floor plans, generate photorealistic 3D renders with AI, and share your architectural designs." },
   { property: "og:type", content: "website" },
   { name: "twitter:card", content: "summary_large_image" },
-  { name: "twitter:title", content: "Roomify — AI Architectural Visualization" },
+  { name: "twitter:title", content: "Prodius Arch — AI Architectural Visualization" },
   { name: "twitter:description", content: "Upload floor plans, generate photorealistic 3D renders with AI." },
 ];
 
@@ -42,8 +44,9 @@ export default function IndexRoute() {
   const [designHistory, setDesignHistory] = useState<DesignHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { isSignedIn, userName, signIn, refreshAuth } =
-    useOutletContext<AuthContext>();
+  const { user, signIn } = useOutletContext<AuthContext>();
+  const isSignedIn = !!user;
+  const userName = user?.name ?? null;
 
   // Batch selection
   const [isBatchMode, setIsBatchMode] = useState(false);
@@ -91,19 +94,26 @@ export default function IndexRoute() {
   const handleUploadComplete = async (base64Image: string) => {
     setUploadError(null);
 
-    const ensuredSignedIn = isSignedIn ? true : await refreshAuth();
-    if (!ensuredSignedIn) {
-      const signedIn = await signIn();
-      if (!signedIn) return false;
+    if (!isSignedIn) {
+      signIn();
+      return false;
     }
 
     const newId = Date.now().toString();
     const name = `Residence ${newId}`;
 
-    const newItem = {
+    // Upload image to S3 via API
+    let sourceUrl = base64Image;
+    const blobData = dataUrlToBlob(base64Image);
+    if (blobData) {
+      const uploaded = await uploadImage(blobData.blob, newId, "source");
+      if (uploaded) sourceUrl = uploaded;
+    }
+
+    const newItem: DesignHistoryItem = {
       id: newId,
       name,
-      sourceImage: base64Image,
+      sourceImage: sourceUrl,
       renderedImage: undefined,
       timestamp: Date.now(),
     };

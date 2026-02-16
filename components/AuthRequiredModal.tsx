@@ -7,8 +7,8 @@ const AuthRequiredModal = ({
   onConfirm,
   onCancel,
   title = "Sign in required",
-  description = "Sign in with your Puter account to continue.",
-  confirmLabel = "Sign in with Puter",
+  description = "Sign in to your account to continue.",
+  confirmLabel = "Sign In",
 }: AuthRequiredModalProps) => {
   if (!isOpen) return null;
 

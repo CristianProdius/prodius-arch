@@ -45,7 +45,8 @@ const Visualizer = ({
   renderHistory: initialHistory = [],
   onRenderHistoryUpdate,
 }: VisualizerProps) => {
-  const { isSignedIn, signIn, settings } = useOutletContext<AuthContext>();
+  const { user, signIn, settings } = useOutletContext<AuthContext>();
+  const isSignedIn = !!user;
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [authRequired, setAuthRequired] = useState(false);
@@ -245,24 +246,15 @@ const Visualizer = ({
     <div className="visualizer">
       <AuthRequiredModal
         isOpen={authRequired}
-        onConfirm={async () => {
-          try {
-            const signedIn = await signIn();
-            if (!signedIn) return;
-            setAuthRequired(false);
-            if (!currentImage && initialImage) {
-              hasInitialGenerated.current = true;
-              runGeneration();
-            }
-          } catch (error) {
-            console.error("Puter sign-in failed:", error);
-          }
+        onConfirm={() => {
+          setAuthRequired(false);
+          signIn();
         }}
         onCancel={() => {
           setAuthRequired(false);
           setIsProcessing(false);
         }}
-        description="Sign in with your Puter account to generate and share visualizations."
+        description="Sign in to your account to generate and share visualizations."
       />
 
       <RenameDialog

@@ -1,55 +1,82 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
-import "../index.css";
 import {
-  getCurrentUser,
-  signIn as puterSignIn,
-  signOut as puterSignOut,
-} from "../lib/puter.action";
+  Links,
+  Meta,
+  Outlet,
+  Scripts,
+  ScrollRestoration,
+  useLoaderData,
+  useNavigate,
+} from "react-router";
+import "../index.css";
+import { auth } from "../lib/auth";
+import { db } from "../lib/db";
+import { userSettings } from "../lib/db/schema";
+import { eq } from "drizzle-orm";
+import { signOut as authSignOut } from "../lib/auth.client";
 import { ToastProvider } from "../components/ui/Toast";
 import ErrorBoundary from "../components/ErrorBoundary";
-import { getSettings, saveSettings, DEFAULT_SETTINGS } from "../lib/settings";
+import { DEFAULT_SETTINGS } from "../lib/settings";
+
+import type { Route } from "./+types/root";
+
+export async function loader({ request }: Route.LoaderArgs) {
+  const session = await auth.api.getSession({ headers: request.headers });
+
+  let settings: UserSettings = DEFAULT_SETTINGS;
+  if (session?.user) {
+    try {
+      const rows = await db
+        .select()
+        .from(userSettings)
+        .where(eq(userSettings.userId, session.user.id));
+      if (rows[0]) {
+        settings = {
+          theme: (rows[0].theme as UserSettings["theme"]) || "light",
+          defaultStyle: (rows[0].defaultStyle as StylePreset) || "modern",
+          defaultQuality: (rows[0].defaultQuality as QualityLevel) || "standard",
+        };
+      }
+    } catch {
+      // DB not ready yet, use defaults
+    }
+  }
+
+  return {
+    user: session?.user
+      ? {
+          id: session.user.id,
+          name: session.user.name,
+          email: session.user.email,
+          image: session.user.image ?? undefined,
+        }
+      : null,
+    settings,
+  };
+}
 
 export default function Root() {
-  const [isSignedIn, setIsSignedIn] = useState(false);
-  const [userName, setUserName] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [settings, setSettings] = useState<UserSettings>(DEFAULT_SETTINGS);
+  const { user, settings: initialSettings } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
+  const [settings, setSettings] = useState<UserSettings>(initialSettings);
 
   const applyTheme = useCallback((theme: UserSettings["theme"]) => {
     const root = document.documentElement;
     if (theme === "dark") {
       root.classList.add("dark");
     } else if (theme === "system") {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      ).matches;
       root.classList.toggle("dark", prefersDark);
     } else {
       root.classList.remove("dark");
     }
   }, []);
 
-  const refreshAuth = async () => {
-    try {
-      const user = await getCurrentUser();
-      setIsSignedIn(!!user);
-      setUserName(user?.username || null);
-      setUserId(user?.uuid || null);
-      return !!user;
-    } catch {
-      setIsSignedIn(false);
-      setUserName(null);
-      setUserId(null);
-      return false;
-    }
-  };
-
   useEffect(() => {
-    refreshAuth();
-    getSettings().then((s) => {
-      setSettings(s);
-      applyTheme(s.theme);
-    });
-  }, [applyTheme]);
+    applyTheme(settings.theme);
+  }, [applyTheme, settings.theme]);
 
   useEffect(() => {
     if (settings.theme !== "system") return;
@@ -61,23 +88,29 @@ export default function Root() {
     return () => mq.removeEventListener("change", handler);
   }, [settings.theme]);
 
-  const signIn = async () => {
-    const alreadySignedIn = await refreshAuth();
-    if (alreadySignedIn) return true;
-    await puterSignIn();
-    return await refreshAuth();
+  const handleSignIn = () => {
+    navigate("/auth/signin");
   };
 
-  const signOut = async () => {
-    puterSignOut();
-    return await refreshAuth();
+  const handleSignOut = async () => {
+    await authSignOut();
+    window.location.href = "/";
   };
 
   const updateSettings = async (partial: Partial<UserSettings>) => {
     const next = { ...settings, ...partial };
     setSettings(next);
     applyTheme(next.theme);
-    await saveSettings(next);
+
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+    } catch {
+      // Settings save failed silently
+    }
   };
 
   return (
@@ -105,15 +138,12 @@ export default function Root() {
               <div className="relative z-10">
                 <Outlet
                   context={{
-                    isSignedIn,
-                    userName,
-                    userId,
-                    refreshAuth,
-                    signIn,
-                    signOut,
+                    user,
+                    signIn: handleSignIn,
+                    signOut: handleSignOut,
                     settings,
                     updateSettings,
-                  }}
+                  } satisfies AuthContext}
                 />
               </div>
             </div>
