@@ -1,0 +1,31 @@
+{
+  "name": "prodius-arch",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "react-router dev",
+    "build": "react-router build",
+    "preview": "react-router preview"
+  },
+  "dependencies": {
+    "@heyputer/puter.js": "^2.2.10",
+    "@react-router/node": "^7.1.5",
+    "@react-router/serve": "^7.1.5",
+    "isbot": "^5.1.5",
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.3",
+    "react-compare-slider": "^3.1.0",
+    "react-dom": "^19.2.3",
+    "react-router": "^7.1.5"
+  },
+  "devDependencies": {
+    "@react-router/dev": "^7.1.5",
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.2.10",
+    "tailwindcss": "^4.1.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}
