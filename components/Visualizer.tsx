@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Box, Download, RefreshCw, Share2, X } from "lucide-react";
+import {
+  Box,
+  Download,
+  RefreshCw,
+  Share2,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Trash2,
+  Copy,
+} from "lucide-react";
 import {
   ReactCompareSlider,
   ReactCompareSliderImage,
@@ -7,6 +18,11 @@ import {
 import { useOutletContext } from "react-router";
 
 import { Button } from "./ui/Button";
+import { useToast } from "./ui/Toast";
+import ConfirmDialog from "./ui/ConfirmDialog";
+import RenameDialog from "./RenameDialog";
+import RenderOptionsPanel from "./RenderOptionsPanel";
+import RenderHistoryStrip from "./RenderHistoryStrip";
 import AuthRequiredModal from "./AuthRequiredModal";
 
 import { generate3DView } from "@/lib/ai.action";
@@ -17,14 +33,20 @@ const Visualizer = ({
   onRenderComplete,
   onShare,
   onUnshare,
+  onRename,
+  onDelete,
+  onDuplicate,
   projectName,
   projectId,
   initialRender,
   isPublic = false,
   sharedBy = null,
   canUnshare = false,
+  renderHistory: initialHistory = [],
+  onRenderHistoryUpdate,
 }: VisualizerProps) => {
-  const { isSignedIn, signIn } = useOutletContext<AuthContext>();
+  const { isSignedIn, signIn, settings } = useOutletContext<AuthContext>();
+  const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [authRequired, setAuthRequired] = useState(false);
   const [currentImage, setCurrentImage] = useState<string | null>(
@@ -34,20 +56,35 @@ const Visualizer = ({
   const [shareStatus, setShareStatus] = useState<ShareStatus>("idle");
   const [shareAction, setShareAction] = useState<ShareAction | null>(null);
 
+  // Render options
+  const [showOptions, setShowOptions] = useState(false);
+  const [renderOptions, setRenderOptions] = useState<RenderOptions>({
+    style: settings.defaultStyle || "modern",
+    lighting: "daylight",
+    quality: settings.defaultQuality || "standard",
+  });
+
+  // Render history
+  const [renderHistory, setRenderHistory] = useState<RenderHistoryEntry[]>(initialHistory);
+  const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
+
+  // Visualizer-level dialogs
+  const [showRename, setShowRename] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [displayName, setDisplayName] = useState(projectName || "Untitled Project");
+
   const hasInitialGenerated = useRef(false);
   const currentImageRef = useRef<string | null>(initialRender || null);
 
   const handleExport = () => {
     if (!currentImage) return;
-
     const link = document.createElement("a");
     link.href = currentImage;
     link.download = `prodius-arch-render-${Date.now()}.png`;
-
     document.body.appendChild(link);
     link.click();
-
     document.body.removeChild(link);
+    toast("success", "Image exported.");
   };
 
   const handleShareToggle = async () => {
@@ -67,8 +104,10 @@ const Visualizer = ({
     try {
       if (nextAction === "share") {
         await onShare(currentImage);
+        toast("success", "Project shared to community.");
       } else {
         await onUnshare(currentImage);
+        toast("success", "Project unshared.");
       }
 
       setShareStatus("done");
@@ -78,12 +117,13 @@ const Visualizer = ({
       }, 1500);
     } catch (error) {
       console.error(`${nextAction} failed:`, error);
+      toast("error", `Failed to ${nextAction} project.`);
       setShareStatus("idle");
       setShareAction(null);
     }
   };
 
-  const runGeneration = async () => {
+  const runGeneration = async (opts?: RenderOptions) => {
     if (!initialImage) return;
 
     setAuthRequired(false);
@@ -97,14 +137,31 @@ const Visualizer = ({
       setIsProcessing(true);
       setGenerationError(false);
 
+      const usedOptions = opts || renderOptions;
+
       const result = await generate3DView({
         sourceImage: initialImage,
         projectId,
+        options: usedOptions,
       });
 
       if (result.renderedImage) {
         setCurrentImage(result.renderedImage);
         currentImageRef.current = result.renderedImage;
+        toast("success", "Render complete!");
+
+        // Add to render history
+        const entry: RenderHistoryEntry = {
+          id: `render-${Date.now()}`,
+          renderedImage: result.renderedImage,
+          timestamp: Date.now(),
+          style: usedOptions.style,
+        };
+        const updatedHistory = [entry, ...renderHistory].slice(0, 10);
+        setRenderHistory(updatedHistory);
+        setActiveHistoryId(entry.id);
+        onRenderHistoryUpdate?.(updatedHistory);
+
         if (onRenderComplete) {
           onRenderComplete({
             renderedImage: result.renderedImage,
@@ -113,9 +170,11 @@ const Visualizer = ({
         }
       } else {
         setGenerationError(true);
+        toast("error", "Generation failed. Please try again.");
       }
     } catch (error: any) {
       console.error("Generation failed:", error);
+      toast("error", "Generation failed. Please try again.");
       if (error?.status === 401 || error?.status === 403) {
         setAuthRequired(true);
       }
@@ -124,11 +183,35 @@ const Visualizer = ({
     }
   };
 
+  const handleRenameConfirm = async (name: string) => {
+    setShowRename(false);
+    setDisplayName(name);
+    if (onRename) {
+      await onRename(name);
+      toast("success", "Project renamed.");
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    setShowDeleteConfirm(false);
+    if (onDelete) {
+      await onDelete();
+      toast("success", "Project deleted.");
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (onDuplicate) {
+      await onDuplicate();
+      toast("success", "Project duplicated.");
+    }
+  };
+
   const isReadOnlyShared = isPublic && !canUnshare;
+  const isOwner = !isPublic || canUnshare;
 
   const getShareLabel = () => {
     if (isReadOnlyShared) return "Shared";
-
     switch (shareStatus) {
       case "saving":
         return shareAction === "unshare" ? "Unsharing…" : "Sharing…";
@@ -147,7 +230,6 @@ const Visualizer = ({
       hasInitialGenerated.current = true;
       return;
     }
-
     hasInitialGenerated.current = true;
     runGeneration();
   }, [initialImage, initialRender]);
@@ -167,7 +249,6 @@ const Visualizer = ({
           try {
             const signedIn = await signIn();
             if (!signedIn) return;
-
             setAuthRequired(false);
             if (!currentImage && initialImage) {
               hasInitialGenerated.current = true;
@@ -184,14 +265,62 @@ const Visualizer = ({
         description="Sign in with your Puter account to generate and share visualizations."
       />
 
+      <RenameDialog
+        isOpen={showRename}
+        currentName={displayName}
+        onConfirm={handleRenameConfirm}
+        onCancel={() => setShowRename(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Project"
+        description="Are you sure you want to delete this project? This cannot be undone."
+        variant="danger"
+        confirmLabel="Delete"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
       <nav className="topbar">
         <div className="brand" onClick={onBack}>
           <Box className="logo" />
           <span className="name">Prodius Arch</span>
         </div>
-        <Button variant="ghost" size="sm" onClick={onBack} className="exit">
-          <X className="icon" /> Exit Editor
-        </Button>
+        <div className="topbar-actions">
+          {isOwner && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowRename(true)}
+                title="Rename"
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDuplicate}
+                title="Duplicate"
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(true)}
+                title="Delete"
+                className="topbar-delete"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </>
+          )}
+          <Button variant="ghost" size="sm" onClick={onBack} className="exit">
+            <X className="icon" /> Exit Editor
+          </Button>
+        </div>
       </nav>
 
       <div className="content">
@@ -199,7 +328,7 @@ const Visualizer = ({
           <div className="panel-header">
             <div className="panel-meta">
               <p>Project</p>
-              <h2>{projectName || "Untitled Project"}</h2>
+              <h2>{displayName}</h2>
               <p className="note">
                 {isPublic
                   ? `Shared by ${sharedBy || "Unknown"}`
@@ -231,6 +360,25 @@ const Visualizer = ({
               </Button>
             </div>
           </div>
+
+          {/* Collapsible Render Options */}
+          <div className="render-options-toggle">
+            <button
+              className="toggle-btn"
+              onClick={() => setShowOptions((p) => !p)}
+            >
+              {showOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              <span>Render Options</span>
+            </button>
+          </div>
+          {showOptions && (
+            <RenderOptionsPanel
+              options={renderOptions}
+              onChange={setRenderOptions}
+              onGenerate={() => runGeneration(renderOptions)}
+              isProcessing={isProcessing}
+            />
+          )}
 
           <div className={`render-area ${isProcessing ? "is-processing" : ""}`}>
             {currentImage ? (
@@ -280,6 +428,16 @@ const Visualizer = ({
               </div>
             )}
           </div>
+
+          <RenderHistoryStrip
+            history={renderHistory}
+            activeId={activeHistoryId}
+            onSelect={(entry) => {
+              setCurrentImage(entry.renderedImage);
+              currentImageRef.current = entry.renderedImage;
+              setActiveHistoryId(entry.id);
+            }}
+          />
         </div>
 
         <div className="panel compare">

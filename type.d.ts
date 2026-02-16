@@ -6,6 +6,29 @@ interface Material {
   category: "floor" | "wall" | "furniture";
 }
 
+interface RenderHistoryEntry {
+  id: string;
+  renderedImage: string;
+  timestamp: number;
+  style?: string;
+}
+
+type StylePreset = "modern" | "classic" | "minimalist" | "industrial" | "scandinavian";
+type LightingOption = "daylight" | "evening" | "studio" | "dramatic";
+type QualityLevel = "draft" | "standard" | "high";
+
+interface RenderOptions {
+  style: StylePreset;
+  lighting: LightingOption;
+  quality: QualityLevel;
+}
+
+interface UserSettings {
+  theme: "light" | "dark" | "system";
+  defaultStyle: StylePreset;
+  defaultQuality: QualityLevel;
+}
+
 interface DesignHistoryItem {
   id: string;
   name?: string | null;
@@ -19,6 +42,8 @@ interface DesignHistoryItem {
   sharedBy?: string | null;
   sharedAt?: string | null;
   isPublic?: boolean;
+  tags?: string[];
+  renderHistory?: RenderHistoryEntry[];
 }
 
 interface DesignConfig {
@@ -53,12 +78,17 @@ interface VisualizerProps {
   onRenderComplete?: (payload: RenderCompletePayload) => void;
   onShare?: (image: string) => Promise<void> | void;
   onUnshare?: (image: string) => Promise<void> | void;
+  onRename?: (name: string) => Promise<void> | void;
+  onDelete?: () => Promise<void> | void;
+  onDuplicate?: () => Promise<void> | void;
   projectName?: string;
   projectId?: string;
   initialRender?: string | null;
   isPublic?: boolean;
   sharedBy?: string | null;
   canUnshare?: boolean;
+  renderHistory?: RenderHistoryEntry[];
+  onRenderHistoryUpdate?: (history: RenderHistoryEntry[]) => void;
 }
 
 interface UploadProps {
@@ -86,6 +116,8 @@ type AuthContext = {
   refreshAuth: () => Promise<boolean>;
   signIn: () => Promise<boolean>;
   signOut: () => Promise<boolean>;
+  settings: UserSettings;
+  updateSettings: (s: Partial<UserSettings>) => Promise<void>;
 };
 
 type AuthRequiredModalProps = {

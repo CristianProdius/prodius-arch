@@ -1,5 +1,10 @@
 import { puter } from "@heyputer/puter.js";
-import { ARCH_RENDER_PROMPT } from "@/lib/constants";
+import {
+  ARCH_RENDER_PROMPT,
+  STYLE_PRESETS,
+  LIGHTING_OPTIONS,
+  QUALITY_LEVELS,
+} from "@/lib/constants";
 
 const fetchAsDataUrl = async (url: string): Promise<string> => {
   const response = await fetch(url);
@@ -17,9 +22,11 @@ const fetchAsDataUrl = async (url: string): Promise<string> => {
 export const generate3DView = async ({
   sourceImage,
   projectId,
+  options,
 }: {
   sourceImage: string;
   projectId?: string | null;
+  options?: RenderOptions;
 }) => {
   const dataUrl = sourceImage.startsWith("data:")
     ? sourceImage
@@ -32,12 +39,31 @@ export const generate3DView = async ({
     throw new Error("Invalid source image payload.");
   }
 
-  const response = await puter.ai.txt2img(ARCH_RENDER_PROMPT, {
+  let prompt = ARCH_RENDER_PROMPT;
+  let resolution = { w: 1024, h: 1024 };
+
+  if (options) {
+    const stylePreset = STYLE_PRESETS[options.style];
+    const lightingOption = LIGHTING_OPTIONS[options.lighting];
+    const qualityLevel = QUALITY_LEVELS[options.quality];
+
+    if (stylePreset) {
+      prompt += `\n\nSTYLE OVERRIDE: ${stylePreset.promptModifier}`;
+    }
+    if (lightingOption) {
+      prompt += `\nLIGHTING OVERRIDE: ${lightingOption.promptModifier}`;
+    }
+    if (qualityLevel) {
+      resolution = qualityLevel.resolution;
+    }
+  }
+
+  const response = await puter.ai.txt2img(prompt, {
     provider: "gemini",
     model: "gemini-2.5-flash-image-preview",
     input_image: base64Data,
     input_image_mime_type: mimeType,
-    ratio: { w: 1024, h: 1024 },
+    ratio: resolution,
   });
 
   const rawImageUrl =

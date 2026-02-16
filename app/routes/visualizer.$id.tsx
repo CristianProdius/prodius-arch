@@ -12,9 +12,20 @@ import {
   saveProject,
   shareProject,
   unshareProject,
+  renameProject,
+  deleteProject,
+  duplicateProject,
 } from "@/lib/puter.action";
 
 import Visualizer from "@/components/Visualizer";
+
+export const meta = ({ params }: { params: { id: string } }) => [
+  { title: `Project ${params.id} | Roomify` },
+  { name: "description", content: "View and edit your AI architectural visualization." },
+  { property: "og:title", content: `Project ${params.id} | Roomify` },
+  { property: "og:description", content: "AI-powered architectural visualization" },
+  { name: "twitter:card", content: "summary_large_image" },
+];
 
 export default function VisualizerRoute() {
   const { id } = useParams();
@@ -73,6 +84,7 @@ export default function VisualizerRoute() {
       timestamp: Date.now(),
       ownerId: resolvedItem?.ownerId || null,
       isPublic: resolvedItem?.isPublic || false,
+      renderHistory: resolvedItem?.renderHistory,
     };
     setResolvedItem(updatedItem);
     const saved = await saveProject(
@@ -121,6 +133,39 @@ export default function VisualizerRoute() {
         if (saved.renderedImage) setSelectedInitialRender(saved.renderedImage);
       }
     }
+  };
+
+  const handleRename = async (name: string) => {
+    if (!id) return;
+    await renameProject(id, name);
+    setResolvedItem((prev) => (prev ? { ...prev, name } : prev));
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    const ok = await deleteProject(id);
+    if (ok) navigate("/");
+  };
+
+  const handleDuplicate = async () => {
+    if (!id) return;
+    const result = await duplicateProject(id);
+    if (result) {
+      navigate(`/visualizer/${result.id}?source=private`, {
+        state: {
+          initialImage: result.sourceImage,
+          initialRender: result.renderedImage || null,
+          name: result.name || null,
+        },
+      });
+    }
+  };
+
+  const handleRenderHistoryUpdate = async (history: RenderHistoryEntry[]) => {
+    if (!id || !resolvedItem) return;
+    const updatedItem = { ...resolvedItem, renderHistory: history };
+    setResolvedItem(updatedItem);
+    await saveProject(updatedItem, updatedItem.isPublic ? "public" : "private");
   };
 
   useEffect(() => {
@@ -195,12 +240,17 @@ export default function VisualizerRoute() {
       onUnshare={(image) =>
         handleShareCurrent(image, { visibility: "private" })
       }
+      onRename={handleRename}
+      onDelete={handleDelete}
+      onDuplicate={handleDuplicate}
       projectName={resolvedName}
       projectId={id}
       initialRender={effectiveInitialRender}
       isPublic={resolvedIsPublic}
       sharedBy={resolvedItem?.sharedBy || null}
       canUnshare={canUnshare}
+      renderHistory={resolvedItem?.renderHistory || []}
+      onRenderHistoryUpdate={handleRenderHistoryUpdate}
     />
   );
 }

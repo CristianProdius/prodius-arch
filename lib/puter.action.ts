@@ -243,3 +243,107 @@ export const shareProject = async (item: DesignHistoryItem) =>
 
 export const unshareProject = async (item: DesignHistoryItem) =>
   saveProject(item, "private");
+
+export const deleteProject = async (id: string): Promise<boolean> => {
+  if (!PUTER_WORKER_URL) return false;
+  try {
+    const response = await puter.workers.exec(
+      `${PUTER_WORKER_URL}/api/projects/delete`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      },
+    );
+    return response.ok;
+  } catch (error) {
+    console.error("Failed to delete project:", error);
+    return false;
+  }
+};
+
+export const renameProject = async (
+  id: string,
+  name: string,
+): Promise<DesignHistoryItem | null> => {
+  if (!PUTER_WORKER_URL) return null;
+  try {
+    const response = await puter.workers.exec(
+      `${PUTER_WORKER_URL}/api/projects/rename`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, name }),
+      },
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as { project?: DesignHistoryItem | null };
+    return data?.project ?? null;
+  } catch (error) {
+    console.error("Failed to rename project:", error);
+    return null;
+  }
+};
+
+export const duplicateProject = async (
+  id: string,
+): Promise<DesignHistoryItem | null> => {
+  if (!PUTER_WORKER_URL) return null;
+  try {
+    const response = await puter.workers.exec(
+      `${PUTER_WORKER_URL}/api/projects/duplicate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      },
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as { project?: DesignHistoryItem | null };
+    return data?.project ?? null;
+  } catch (error) {
+    console.error("Failed to duplicate project:", error);
+    return null;
+  }
+};
+
+export const batchDeleteProjects = async (ids: string[]): Promise<boolean> => {
+  if (!PUTER_WORKER_URL) return false;
+  try {
+    const response = await puter.workers.exec(
+      `${PUTER_WORKER_URL}/api/projects/batch-delete`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      },
+    );
+    return response.ok;
+  } catch (error) {
+    console.error("Failed to batch delete projects:", error);
+    return false;
+  }
+};
+
+export const updateProjectTags = async (
+  id: string,
+  tags: string[],
+): Promise<DesignHistoryItem | null> => {
+  if (!PUTER_WORKER_URL) return null;
+  try {
+    const response = await puter.workers.exec(
+      `${PUTER_WORKER_URL}/api/projects/update-tags`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, tags }),
+      },
+    );
+    if (!response.ok) return null;
+    const data = (await response.json()) as { project?: DesignHistoryItem | null };
+    return data?.project ?? null;
+  } catch (error) {
+    console.error("Failed to update project tags:", error);
+    return null;
+  }
+};
